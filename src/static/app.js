@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const participantsList = document.getElementById("participants-list");
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -50,6 +51,14 @@ document.addEventListener("DOMContentLoaded", () => {
             li.className = "participant-item";
             // Use textContent to avoid injecting HTML
             li.textContent = p;
+
+            // Create delete icon
+            const deleteIcon = document.createElement("span");
+            deleteIcon.textContent = "🗑️"; // You can replace this with an actual icon
+            deleteIcon.style.cursor = "pointer";
+            deleteIcon.addEventListener("click", () => unregisterParticipant(p, activityCard));
+
+            li.appendChild(deleteIcon);
             ul.appendChild(li);
           });
 
@@ -76,6 +85,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Refresh the participants list after registration
+  async function refreshParticipants() {
+    const response = await fetch('/participants');
+    const participants = await response.json();
+    participantsList.innerHTML = '';
+    participants.forEach(participant => {
+      const li = document.createElement('li');
+      li.textContent = participant.name;
+      participantsList.appendChild(li);
+    });
+  }
+
   // Handle form submission
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -97,6 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        await refreshParticipants(); // Refresh participants list
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
@@ -115,6 +137,49 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Error signing up:", error);
     }
   });
+
+  function unregisterParticipant(email, activityCard) {
+    // Logic to unregister participant
+    console.log(`Unregistering participant: ${email}`);
+
+    // Find the activity card for the participant
+    const card = Array.from(activitiesList.children).find((card) => {
+      const activityName = card.querySelector("h4").textContent;
+      return activityName === activityCard.querySelector("h4").textContent;
+    });
+
+    if (card) {
+      const participantsSection = card.querySelector(".participants-section");
+      const participantsList = participantsSection.querySelector(".participants-list");
+
+      // Find and remove the participant list item
+      const participantItem = Array.from(participantsList.children).find((item) => {
+        return item.textContent.includes(email);
+      });
+
+      if (participantItem) {
+        participantsList.removeChild(participantItem);
+        messageDiv.textContent = `${email} has been unregistered.`;
+        messageDiv.className = "success";
+        messageDiv.classList.remove("hidden");
+
+        // Hide message after 5 seconds
+        setTimeout(() => {
+          messageDiv.classList.add("hidden");
+        }, 5000);
+      }
+    }
+  }
+
+  // CSS to hide bullet points
+  const style = document.createElement('style');
+  style.innerHTML = `
+    #participants-list {
+      list-style-type: none;
+      padding: 0;
+    }
+  `;
+  document.head.appendChild(style);
 
   // Initialize app
   fetchActivities();
